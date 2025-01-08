@@ -12,15 +12,19 @@ function ChatRoom() {
     const [authorName, setAuthorName] = useState('')
     const [loading, setLoading] = useState(true)
     const [connected, setConnected] = useState(false)
+    const [afterChatMessageId, setAfterChatMessageId] = useState(0)
     const messagesEndRef = useRef(null)
     const wsRef = useRef(null)
 
     // 초기 메시지 로드
     const fetchInitialMessages = async () => {
         try {
-            const response = await axios.get(`http://localhost:8070/api/v1/chat/rooms/${roomId}/messages`)
+            const response = await axios.get(`http://localhost:8070/api/v1/chat/rooms/${roomId}/messages`, {
+                params: { afterChatMessageId },
+            })
             if (response.data && response.data.length > 0) {
                 setMessages(response.data)
+                setAfterChatMessageId(response.data[response.data.length - 1].id)
             }
         } catch (error) {
             console.error('Error fetching initial messages:', error)
@@ -70,6 +74,7 @@ function ChatRoom() {
     useEffect(() => {
         fetchInitialMessages()
         // 웹 소켓 연결
+        connectWebSocket()
         // connectWebSocket()
 
         // 컴포넌트 언마운트 시 WebSocket 연결 종료
