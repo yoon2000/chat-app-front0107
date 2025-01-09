@@ -60,7 +60,32 @@ function ChatRoom() {
                 stompClient.subscribe(`/topic/chat/${roomId}`, (message) => {
                     const receivedMessage = JSON.parse(message.body)
                     console.log('Received message:', receivedMessage)
-                    // 메시지 처리 로직
+
+                    setMessages((prevMessages) => {
+                        // 이미 같은 내용의 메시지가 있는지 확인
+                        const isDuplicate = prevMessages.some(
+                            (msg) =>
+                                msg.content === receivedMessage.content &&
+                                msg.author === receivedMessage.author &&
+                                // 최근 2초 이내의 메시지인지 확인
+                                new Date(msg.createdAt).getTime() > Date.now() - 2000,
+                        )
+
+                        if (isDuplicate) {
+                            return prevMessages
+                        }
+
+                        return [
+                            ...prevMessages,
+                            {
+                                id: `msg${prevMessages.length + 1}`,
+                                content: receivedMessage.content,
+                                author: receivedMessage.author,
+                                createdAt: new Date().toISOString(),
+                                isMyMessage: receivedMessage.author === authorName,
+                            },
+                        ]
+                    })
                 })
 
                 wsRef.current = stompClient
@@ -105,7 +130,7 @@ function ChatRoom() {
 
         try {
             if (connected && wsRef.current) {
-                // WebSocket을 통해 메시지 전송
+                // WebSocket을 통해 메시지 전송만 하고, UI 업데이트는 구독을 통해 처리
                 wsRef.current.send(
                     `/app/chat/${roomId}/sendMessage`,
                     {},
@@ -115,18 +140,15 @@ function ChatRoom() {
                     }),
                 )
             } else {
-                // WebSocket 연결이 없을 경우 HTTP API로 폴백
+                // WebSocket 연결이 없을 경우에만 HTTP API 사용 및 UI 직접 업데이트
                 await axios.post(`http://localhost:8070/api/v1/chat/rooms/${roomId}/messages`, {
                     content: newMessage,
                     author: authorName,
                 })
+                setMessages((prev) => [...prev, newChat])
             }
-            // UI 즉시 업데이트
-            setMessages((prev) => [...prev, newChat])
         } catch (error) {
             console.error('Error sending message:', error)
-            // 에러 발생시에도 UI 업데이트
-            setMessages((prev) => [...prev, newChat])
             toast.warning('테스트 모드로 작동합니다.')
         }
 
