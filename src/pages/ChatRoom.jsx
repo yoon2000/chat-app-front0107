@@ -4,6 +4,8 @@ import ReactLoading from 'react-loading'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { mockChats } from '../mocks/data'
+import SockJS from 'sockjs-client'
+import Stomp from 'stompjs'
 
 function ChatRoom() {
     const { roomId } = useParams()
@@ -39,31 +41,30 @@ function ChatRoom() {
     // WebSocket 연결 설정
     const connectWebSocket = () => {
         try {
-            const ws = new WebSocket(`ws://localhost:8070/ws/chat/${roomId}`)
+            console.log('WebSocket 연결 시도')
+            // const ws = new WebSocket(`ws://localhost:8070/ws/chat/${roomId}`)
 
-            ws.onopen = () => {
-                console.log('WebSocket Connected')
+            if (wsRef.current && wsRef.current.connected) {
+                console.log('Websocket is already connected')
+                return
+            }
+
+            const socket = new SockJS('http://localhost:8070/ws/chat')
+            const stompClient = Stomp.over(socket)
+
+            stompClient.connect({}, (frame) => {
+                console.log('STOMP Connected:', frame)
                 setConnected(true)
-            }
 
-            ws.onmessage = (event) => {
-                const message = JSON.parse(event.data)
-                setMessages((prev) => [...prev, message])
-            }
+                // 메시지를 수신하기 위해 해당 채팅방을 구독
+                stompClient.subscribe(`/topic/chat/${roomId}`, (message) => {
+                    const receivedMessage = JSON.parse(message.body)
+                    console.log('Received message:', receivedMessage)
+                    // 메시지 처리 로직
+                })
 
-            ws.onclose = () => {
-                console.log('WebSocket Disconnected')
-                setConnected(false)
-                // 연결이 끊어졌을 때 10초 후 재연결 시도
-                // setTimeout(connectWebSocket, 10000)
-            }
-
-            ws.onerror = (error) => {
-                console.error('WebSocket Error:', error)
-                toast.error('채팅 연결에 문제가 발생했습니다.')
-            }
-
-            wsRef.current = ws
+                wsRef.current = stompClient
+            })
         } catch (error) {
             console.error('WebSocket connection error:', error)
             toast.error('채팅 연결에 실패했습니다.')
