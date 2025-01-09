@@ -44,7 +44,7 @@ function ChatRoom() {
             console.log('WebSocket 연결 시도')
             // const ws = new WebSocket(`ws://localhost:8070/ws/chat/${roomId}`)
 
-            if (wsRef.current && wsRef.current.connected) {
+            if (wsRef.current && wsRef.current) {
                 console.log('Websocket is already connected')
                 return
             }
@@ -107,8 +107,9 @@ function ChatRoom() {
             if (connected && wsRef.current) {
                 // WebSocket을 통해 메시지 전송
                 wsRef.current.send(
+                    `/app/chat/${roomId}/sendMessage`,
+                    {},
                     JSON.stringify({
-                        roomId,
                         content: newMessage,
                         author: authorName,
                     }),
